@@ -93,18 +93,26 @@ class SpecView: NSView {
     }
 
     func calculateSpectrum(_ waveform: [Float]) {
-        var real = [Float](waveform)
-        var imag = [Float](repeating: 0.0, count: real.count)
+        var real = waveform
+        let count = real.count
         
-        var splitComplex = DSPSplitComplex(realp: &real, imagp: &imag)
+        var imag = [Float](repeating: 0.0, count: count)
         
-        var fftResultRaw = [Float](repeating: 0.0, count: real.count)
+        // https://developer.apple.com/forums/thread/132252
+        real.withUnsafeMutableBufferPointer {realBP in
+                    imag.withUnsafeMutableBufferPointer {imagBP in
+                        var splitComplex = DSPSplitComplex(realp: realBP.baseAddress!, imagp: imagBP.baseAddress!)
+                        
+                        var fftResultRaw = [Float](repeating: 0.0, count: count)
+                        
+                        vDSP_fft_zip(fftSetup, &splitComplex, 1, fftLength, FFTDirection(FFT_FORWARD))
+                        
+                        vDSP_zvmags(&splitComplex, 1, &fftResultRaw, 1, vDSP_Length(fftResultRaw.count))
+                        
+                        vDSP_vsmul(&fftResultRaw, 1, [0.07 / Float(fftResult.count)], &fftResult, 1, vDSP_Length(fftResult.count))
+                    }
+        }
         
-        vDSP_fft_zip(fftSetup, &splitComplex, 1, fftLength, FFTDirection(FFT_FORWARD))
-        
-        vDSP_zvmags(&splitComplex, 1, &fftResultRaw, 1, vDSP_Length(fftResultRaw.count))
-        
-        vDSP_vsmul(&fftResultRaw, 1, [0.07 / Float(fftResult.count)], &fftResult, 1, vDSP_Length(fftResult.count))
     }
     
 }
