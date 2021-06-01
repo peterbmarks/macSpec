@@ -28,7 +28,7 @@ class ViewController: NSViewController {
     @objc func redraw() {
         if (running) {
             if let buffer = AudioInput.sharedInstance.ringBuffers.first {
-                buffer.copyTo(waveView.waveform)
+                waveView.waveform = buffer.copyTo(count: waveView.waveform.count)
             }
         }
         if (generated) {
