@@ -11,24 +11,46 @@ import Foundation
 let kBufferSize = 1024 * 16
 
 class RingBuffer: NSObject {
-    var samples = [Float](repeating: 0, count: kBufferSize)
+    let samples = [Float](repeating: 0, count: kBufferSize)
     var offset = 0
     
-    func copyTo(count: Int) -> [Float] {
-        var buffer = [Float]()
-        for index in 0..<count {
-            buffer.append(samples[(index + offset) % kBufferSize])
+    func copyTo(_ result: [Float]) {
+        let ofs = offset;
+        let destination = UnsafeMutablePointer<Float>(mutating: result)
+        let length = result.count
+        
+        if (length <= offset) { // Just copy length items in front of ofs
+            let src = UnsafeMutablePointer<Float>(mutating: samples) + ofs - length
+            let dst = UnsafeMutablePointer<Float>(destination)
+            dst.assign(from: src, count: length)
+        } else { // Split
+            let tail = length - ofs;
+            let src1 = UnsafeMutablePointer<Float>(mutating: samples) + kBufferSize - tail
+            let dst1 = UnsafeMutablePointer<Float>(destination)
+            dst1.assign(from: src1, count: tail)
+
+            let src2 = UnsafeMutablePointer<Float>(mutating: samples)
+            let dst2 = UnsafeMutablePointer<Float>(destination) + tail
+            dst2.assign(from: src2, count: ofs)
         }
-        return buffer
     }
 
     @objc func pushSamples(_ source: UnsafeMutablePointer<Float32>, count: Int) {
-        var bufferIndex = 0
-        for index in 0..<count {
-            bufferIndex = (index + offset) % kBufferSize
-            samples[bufferIndex] = source[index]
-        }
-        offset = bufferIndex
+        let rest = kBufferSize - offset;
+        if (count <= rest) { // There is enough space, just copy past offset
+            let src = UnsafeMutablePointer<Float>(source)
+            let dst = UnsafeMutablePointer<Float>(mutating: samples) + offset
+            dst.assign(from: src, count: count)
+            offset += count;
+        } else { // Split
+            let src1 = UnsafeMutablePointer<Float>(source)
+            let dst1 = UnsafeMutablePointer<Float>(mutating: samples) + offset
+            dst1.assign(from: src1, count: rest)
+            
+            let src2 = UnsafeMutablePointer<Float>(source) + rest
+            let dst2 = UnsafeMutablePointer<Float>(mutating: samples)
+            dst2.assign(from: src2, count: count - rest)
+            offset = count - rest;
+        }        
     }
 }
-
