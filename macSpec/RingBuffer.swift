@@ -14,10 +14,24 @@ class RingBuffer: NSObject {
     let samples = [Float](repeating: 0, count: kBufferSize)
     var offset = 0
     
+    // copy our samples into the result array of floats
     func copyTo(_ result: [Float]) {
         let ofs = offset;
-        let destination = UnsafeMutablePointer<Float>(mutating: result)
         let length = result.count
+        /*
+        result.withUnsafeBufferPointer { resultPtr in
+            if (length <= offset) { // Just copy length items in front of ofs
+                samples.withUnsafeBufferPointer { samplePtr in
+                    resultPtr = samplePtr + ofs - length
+                }
+                let src = UnsafeMutablePointer<Float>(mutating: samples) + ofs - length
+                //resultPtr.assign(from: src, count: length)
+            }
+            
+        }
+        */
+        
+        let destination = UnsafeMutablePointer<Float>(mutating: result)
         
         if (length <= offset) { // Just copy length items in front of ofs
             let src = UnsafeMutablePointer<Float>(mutating: samples) + ofs - length
